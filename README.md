@@ -1,5 +1,5 @@
 # MR.Q: Towards General-Purpose Model-Free Reinforcement Learning
-PyTorch implementation of the MR.Q algorithm from [Towards General-Purpose Model-Free Reinforcement Learning]() by Scott Fujimoto, Pierluca D'Oro, Amy Zhang, Yuandong Tian, and Mike Rabbat.
+PyTorch implementation of the MR.Q algorithm from [Towards General-Purpose Model-Free Reinforcement Learning](https://arxiv.org/abs/2501.16142) by Scott Fujimoto, Pierluca D'Oro, Amy Zhang, Yuandong Tian, and Michael Rabbat.
 
 ## Installing
 
