@@ -12,7 +12,7 @@ import torch
 
 # We include some optimizations in this buffer to storing states multiple times when history or horizon > 1.
 class ReplayBuffer:
-    def __init__(self, obs_shape: tuple[int], action_dim: int, max_action: float, pixel_obs: bool,
+    def __init__(self, obs_shape: tuple[int, ...], action_dim: int, max_action: float, pixel_obs: bool,
         device: torch.device, history: int=1, horizon: int=1, max_size: int=1e6, batch_size: int=256,
         prioritized: bool=True, initial_priority: float=1, normalize_actions: bool=True):
 
@@ -94,7 +94,8 @@ class ReplayBuffer:
         self.action_reward_notdone[self.ind,1] = 1. - terminated
         self.action_reward_notdone[self.ind,2:] = self.one_hot_or_normalize(action)
 
-        self.priority[self.ind] = self.max_priority
+        if self.prioritized:
+            self.priority[self.ind] = self.max_priority
 
         # Tracking
         self.size = max(self.size, self.ind + 1)
