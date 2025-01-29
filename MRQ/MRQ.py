@@ -225,8 +225,8 @@ class Agent:
 
         policy_action, pre_activ = self.policy(zs)
         zsa = self.encoder(zs, policy_action)
-        Q = self.value(zsa)
-        policy_loss = -Q.mean() + self.pre_activ_weight * pre_activ.pow(2).mean()
+        Q_policy = self.value(zsa)
+        policy_loss = -Q_policy.mean() + self.pre_activ_weight * pre_activ.pow(2).mean()
 
         self.policy_optimizer.zero_grad(set_to_none=True)
         policy_loss.backward()
