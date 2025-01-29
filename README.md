@@ -33,3 +33,7 @@ python main.py --env Atari-Pong-v5
 ## Results
 
 Results are formatted in human-readable .txt files under [/results](results). There is a code snippet in [MRQ/utils.py](MRQ/utils.py#L46) to process the .txt files into a dictionary of arrays. 
+
+## License
+
+MRQ is licensed under the CC BY-NC 4.0 license, as found in the [LICENSE](LICENSE) file.
