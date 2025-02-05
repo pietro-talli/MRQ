@@ -147,34 +147,36 @@ class ReplayBuffer:
         return self.sampled_ind
 
 
-    def sample(self, horizon: int=-1):
+    def sample(self, horizon: int, include_intermediate: bool=False):
         ind = self.sample_ind()
-        ind = (ind.reshape(-1,1) + np.arange(self.horizon).reshape(1,-1)) % self.max_size
+        ind = (ind.reshape(-1,1) + np.arange(horizon).reshape(1,-1)) % self.max_size
 
         ard = self.action_reward_notdone[ind]
-        # Sample subtrajectory (with horizon dimension) for unrolling dynamics.
-        if horizon == -1:
-            # Group (state, next_state) to speed up CPU -> GPU transfer.
-            state_ind = np.concatenate([self.state_ind[ind], self.next_ind[ind[:,-1].reshape(-1,1)]], 1)
-            both_state = self.obs[state_ind].reshape(self.batch_size, -1, *self.state_shape).to(self.device).type(torch.float)
-            return (
-                both_state[:, :-1],       # State: (batch_size, horizon, *state_dim)
-                ard[:,:,2:],              # Action: (batch_size, horizon, action_dim)
-                both_state[:, 1:],        # Next state: (batch_size, horizon, *state_dim)
-                ard[:,:,0].unsqueeze(-1), # Reward: (batch_size, horizon, 1)
-                ard[:,:,1].unsqueeze(-1)  # Notdone: (batch_size, horizon, 1)
-            )
 
+        # Sample subtrajectory (with horizon dimension) for unrolling dynamics.
+        if include_intermediate:
+            # Group (state, next_state) to speed up CPU -> GPU transfer.
+            state_ind = np.concatenate([
+                self.state_ind[ind],
+                self.next_ind[ind[:,-1].reshape(-1,1)]
+            ], 1)
+            both_state = self.obs[state_ind].reshape(self.batch_size,-1,*self.state_shape).to(self.device).type(torch.float)
+            state = both_state[:,:-1]       # State: (batch_size, horizon, *state_dim)
+            next_state = both_state[:,1:]   # Next state: (batch_size, horizon, *state_dim)
+            action = ard[:,:,2:]            # Action: (batch_size, horizon, action_dim)
+        
         # Sample at specific horizon (used for multistep rewards).
-        state_ind = np.concatenate([self.state_ind[ind[:,0].reshape(-1,1)], self.next_ind[ind[:,horizon-1].reshape(-1,1)]], 1)
-        both_state = self.obs[state_ind].reshape(self.batch_size, 2, *self.state_shape).to(self.device).type(torch.float)
-        return (
-            both_state[:, 0],                        # State: (batch_size, *state_dim)
-            ard[:,0,2:],                             # Action: (batch_size, action_dim)
-            both_state[:, 1],                        # Next state: (batch_size, *state_dim)
-            ard[:,:horizon,0].unsqueeze(-1),         # Reward: (batch_size, horizon, 1) <- For multistep rewards
-            ard[:,:horizon,1].unsqueeze(-1).prod(1)  # Notdone: (batch_size, 1)
-        )
+        else:
+            state_ind = np.concatenate([
+                self.state_ind[ind[:,0].reshape(-1,1)],
+                self.next_ind[ind[:,-1].reshape(-1,1)]
+            ], 1)
+            both_state = self.obs[state_ind].reshape(self.batch_size,2,*self.state_shape).to(self.device).type(torch.float)
+            state = both_state[:,0]         # State: (batch_size, *state_dim)
+            next_state = both_state[:,1]    # Next state: (batch_size, *state_dim)
+            action = ard[:,0,2:]            # Action: (batch_size, action_dim)
+
+        return state, action, next_state, ard[:,:,0].unsqueeze(-1), ard[:,:,1].unsqueeze(-1)
 
 
     def update_priority(self, priority: torch.Tensor):

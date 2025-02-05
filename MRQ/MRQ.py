@@ -159,13 +159,13 @@ class Agent:
             self.reward_scale = self.replay_buffer.reward_scale()
 
             for _ in range(self.target_update_freq):
-                state, action, next_state, reward, not_done = self.replay_buffer.sample()
+                state, action, next_state, reward, not_done = self.replay_buffer.sample(self.enc_horizon, include_intermediate=True)
                 state, next_state = maybe_augment_state(state, next_state, self.pixel_obs, self.pixel_augs)
                 self.train_encoder(state, action, next_state, reward, not_done, self.replay_buffer.env_terminates)
 
-        state, action, next_state, reward, not_done = self.replay_buffer.sample(horizon=self.Q_horizon)
+        state, action, next_state, reward, not_done = self.replay_buffer.sample(self.Q_horizon, include_intermediate=False)
         state, next_state = maybe_augment_state(state, next_state, self.pixel_obs, self.pixel_augs)
-        reward = multi_step_reward(reward, self.gammas)
+        reward, not_done = multi_step_reward(reward, not_done, self.gammas)
 
         Q, Q_target = self.train_rl(state, action, next_state, reward, not_done,
             self.reward_scale, self.target_reward_scale)
@@ -179,7 +179,9 @@ class Agent:
     def train_encoder(self, state: torch.Tensor, action: torch.Tensor, next_state: torch.Tensor,
         reward: torch.Tensor, not_done: torch.Tensor, env_terminates: bool):
         with torch.no_grad():
-            encoder_target = self.encoder_target.zs(next_state.reshape(-1, *self.state_shape)).reshape(state.shape[0], -1, self.zs_dim)
+            encoder_target = self.encoder_target.zs(
+                next_state.reshape(-1,*self.state_shape) # Combine batch and horizon
+            ).reshape(state.shape[0],-1,self.zs_dim) # Separate batch and horizon
 
         pred_zs = self.encoder.zs(state[:,0])
         prev_not_done = 1 # In subtrajectories with termination, mask out losses after termination.
@@ -188,12 +190,13 @@ class Agent:
         for i in range(self.enc_horizon):
             pred_d, pred_zs, pred_r = self.encoder.model_all(pred_zs, action[:,i])
 
+            # Mask out states past termination.
             dyn_loss = masked_mse(pred_zs, encoder_target[:,i], prev_not_done)
             reward_loss = (self.two_hot.cross_entropy_loss(pred_r, reward[:,i]) * prev_not_done).mean()
             done_loss = masked_mse(pred_d, 1. - not_done[:,i].reshape(-1,1), prev_not_done) if env_terminates else 0
 
             encoder_loss = encoder_loss + self.dyn_weight * dyn_loss + self.reward_weight * reward_loss + self.done_weight * done_loss
-            prev_not_done = not_done[:,i].reshape(-1,1) * prev_not_done # Adjust mask
+            prev_not_done = not_done[:,i].reshape(-1,1) * prev_not_done # Adjust termination mask.
 
         self.encoder_optimizer.zero_grad(set_to_none=True)
         encoder_loss.backward()
@@ -253,7 +256,7 @@ class Agent:
 
 
     def load(self, save_folder: str):
-        # Load models/optimizers
+        # Load models/optimizers.
         models = [
             'encoder', 'encoder_target', 'encoder_optimizer',
             'policy', 'policy_target', 'policy_optimizer',
@@ -261,7 +264,7 @@ class Agent:
         ]
         for k in models: self.__dict__[k].load_state_dict(torch.load(f'{save_folder}/{k}.pt', weights_only=True))
 
-        # Load variables
+        # Load variables.
         var_dict = np.load(f'{save_folder}/agent_var.npy', allow_pickle=True).item()
         for k, v in var_dict.items(): self.__dict__[k] = v
 
@@ -308,8 +311,8 @@ def masked_mse(x: torch.Tensor, y: torch.Tensor, mask: torch.Tensor):
     return (F.mse_loss(x, y, reduction='none') * mask).mean()
 
 
-def multi_step_reward(reward: torch.Tensor, gammas: torch.Tensor):
-    return (reward * gammas).sum(1)
+def multi_step_reward(reward: torch.Tensor, not_done: torch.Tensor, gammas: torch.Tensor):
+    return (reward * not_done * gammas).sum(1), not_done.prod(1)
 
 
 def maybe_augment_state(state: torch.Tensor, next_state: torch.Tensor, pixel_obs: bool, use_augs: bool):
@@ -331,7 +334,7 @@ def maybe_augment_state(state: torch.Tensor, next_state: torch.Tensor, pixel_obs
     return state, next_state
 
 
-# Random shift
+# Random shift.
 def shift_aug(image: torch.Tensor, pad: int=4):
     batch_size, _, height, width = image.size()
     image = F.pad(image, (pad, pad, pad, pad), 'replicate')
