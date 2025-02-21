@@ -194,11 +194,12 @@ class OnlineExperiment:
         for ep in range(self.eval_eps):
             state, terminated, truncated = self.eval_env.reset(), False, False
             action = self.agent.select_action(np.array(state), use_exploration=False)
+            zs = self.agent.encoder.zs(torch.from_numpy(state).unsqueeze(0).float().to(self.agent.device))
             while not (terminated or truncated):
-                state, _, terminated, truncated = self.eval_env.step(action)
+                _, _, terminated, truncated = self.eval_env.step(action)
                 # predict next state 
                 action_encoded = self.agent.replay_buffer.one_hot_or_normalize(action)
-                zs = self.agent.encoder.zs(torch.from_numpy(state).unsqueeze(0).float().to(self.agent.device))
+                #zs = self.agent.encoder.zs(torch.from_numpy(state).unsqueeze(0).float().to(self.agent.device))
                 _, zs, _ = self.agent.encoder.model_all(zs, action_encoded.view(1, -1))
                 action = self.agent.policy.act(zs)
                 action = int(action.argmax()) if self.agent.discrete else action.clamp(-1,1).cpu().data.numpy().flatten() * self.max_action

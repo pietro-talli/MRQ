@@ -102,6 +102,59 @@ class DmcHyperparameters:
     def __post_init__(self): utils.enforce_dataclass_type(self)
 
 import highway_env
+import time
+from highway_env.envs.common.action import Action
+
+def simulate(self, action: Action | None = None) -> None:
+        """Perform several steps of simulation with constant action."""
+        frames = int(
+            self.config["simulation_frequency"] // self.config["policy_frequency"]
+        )
+        if self.viewer.offscreen:
+            print("offscreen")
+            # Forward action to the vehicle
+            if (
+                action is not None
+                and not self.config["manual_control"]
+                and self.steps
+                % int(
+                    self.config["simulation_frequency"]
+                    // self.config["policy_frequency"]
+                )
+                == 0
+            ):
+                self.action_type.act(action)
+
+            self.road.act()
+            self.road.step(frames / self.config["simulation_frequency"])
+            self.steps += frames
+        else:
+            for frame in range(frames):
+                # Forward action to the vehicle
+                if (
+                    action is not None
+                    and not self.config["manual_control"]
+                    and self.steps
+                    % int(
+                        self.config["simulation_frequency"]
+                        // self.config["policy_frequency"]
+                    )
+                    == 0
+                ):
+                    self.action_type.act(action)
+
+                self.road.act()
+                self.road.step(1 / self.config["simulation_frequency"])
+                self.steps += 1
+
+                # Automatically render intermediate simulation steps if a viewer has been launched
+                # Ignored if the rendering is done offscreen
+                if (
+                    frame < frames - 1
+                ):  # Last frame will be rendered through env.render() as usual
+                    self._automatic_rendering()
+
+        self.enable_auto_render = False
 
 class HighwayPreprocessing:
     def __init__(self, env_name: str, seed: int = 0, eval_env: bool=False, hp: Dict={}):
@@ -123,13 +176,18 @@ class HighwayPreprocessing:
         }
 
         self.env = gym.make('highway-v0', render_mode = 'rgb_array', config = self.config)
+        self.env._simulate = simulate.__get__(self.env)
         self.pixel_obs = True
         self.obs_shape = (3, self.image_size, self.image_size) # The first dim (3) is color channels (RGB).
         self.action_space = self.env.action_space
         self.history_queue = deque(maxlen=self.history)
         self.max_ep_timesteps = self.config['duration'] * self.config["policy_frequency"]
+        self.time_start = time.time()
+        self.t = 0
 
     def reset(self):
+        print("FPS: ", self.t/(time.time()-self.time_start))
+        self.time_start = time.time()
         self.t = 0
         self.env.reset()
 
