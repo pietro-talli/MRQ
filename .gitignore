@@ -1,5 +1,6 @@
 evals/
 logs/
-*.pyc
+
+# Python Tools for Visual Studio (PTVS)
 __pycache__/
 *.pyc
