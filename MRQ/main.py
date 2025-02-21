@@ -186,6 +186,22 @@ class OnlineExperiment:
             f'Average total reward over {self.eval_eps} episodes: {total_reward.mean():.3f}\n'
             f'Total time passed: {round((time.time() - self.start_time + self.time_passed)/60., 2)} minutes')
 
+        # Test model predictions
+        total_reward = np.zeros(self.eval_eps)
+        for ep in range(self.eval_eps):
+            state, terminated, truncated = self.eval_env.reset(), False, False
+            action = self.agent.select_action(np.array(state), use_exploration=False)
+            while not (terminated or truncated):
+                state, _, terminated, truncated = self.eval_env.step(action)
+                # predict next state 
+                action_encoded = self.agent.replay_buffer.one_hot_or_normalize(action)
+                zs = self.agent.encoder.zs(torch.from_numpy(state).view(1, -1).float().to(self.agent.device))
+                _, zs, _ = self.agent.encoder.model_all(zs, action_encoded.view(1, -1))
+                action = self.agent.policy.act(zs)
+                action = int(action.argmax()) if self.agent.discrete else action.clamp(-1,1).cpu().data.numpy().flatten() * self.max_action
+            total_reward[ep] = self.eval_env.ep_total_reward
+        print("Open Loop Reward: ", total_reward.mean())
+
         np.savetxt(f'{self.eval_folder}/{self.project_name}.txt', self.evals, fmt='%.14f')
 
 
