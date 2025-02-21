@@ -198,7 +198,7 @@ class OnlineExperiment:
                 state, _, terminated, truncated = self.eval_env.step(action)
                 # predict next state 
                 action_encoded = self.agent.replay_buffer.one_hot_or_normalize(action)
-                zs = self.agent.encoder.zs(torch.from_numpy(state).view(1, -1).float().to(self.agent.device))
+                zs = self.agent.encoder.zs(torch.from_numpy(state).unsqueeze(0).float().to(self.agent.device))
                 _, zs, _ = self.agent.encoder.model_all(zs, action_encoded.view(1, -1))
                 action = self.agent.policy.act(zs)
                 action = int(action.argmax()) if self.agent.discrete else action.clamp(-1,1).cpu().data.numpy().flatten() * self.max_action

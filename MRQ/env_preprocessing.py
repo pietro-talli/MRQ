@@ -131,26 +131,25 @@ class HighwayPreprocessing:
 
     def reset(self):
         self.t = 0
-        time_step = self.env.reset()
+        self.env.reset()
 
-        obs = self.get_obs(time_step)
+        obs = self.get_obs(self.t)
         for _ in range(self.history):
             self.history_queue.append(obs)
-
         return np.concatenate(self.history_queue), {}
 
 
     def step(self, action: int):
         self.t += 1
 
-        _, reward, terminal, truncated = self.env.step(action)
+        _, reward, terminal, truncated, _ = self.env.step(action)
 
         obs = self.get_obs(self.t)
         self.history_queue.append(obs)
         return np.concatenate(self.history_queue), reward, terminal, truncated, {}
 
     def get_obs(self, time_step: object):
-        self.render(self.image_size)
+        return self.render(self.image_size)
 
     def render(self, size: int=84, camera_id: int=0):
         img = self.env.render()
