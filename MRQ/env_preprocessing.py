@@ -11,6 +11,9 @@ from functools import partial
 from typing import Dict
 
 import gymnasium as gym
+import highway_env.envs
+import highway_env.envs.common
+import highway_env.envs.common.abstract
 import numpy as np
 
 import utils
@@ -104,14 +107,15 @@ class DmcHyperparameters:
 import highway_env
 import time
 from highway_env.envs.common.action import Action
+from highway_env.envs.highway_env import HighwayEnv
 
-def simulate(self, action: Action | None = None) -> None:
+class HW2(HighwayEnv):
+    def _simulate(self, action: Action | None = None) -> None:
         """Perform several steps of simulation with constant action."""
         frames = int(
             self.config["simulation_frequency"] // self.config["policy_frequency"]
         )
         if self.viewer.offscreen:
-            print("offscreen")
             # Forward action to the vehicle
             if (
                 action is not None
@@ -174,9 +178,9 @@ class HighwayPreprocessing:
             "simulation_frequency": 5,  
             "offscreen_rendering": True,
         }
-
-        self.env = gym.make('highway-v0', render_mode = 'rgb_array', config = self.config)
-        self.env._simulate = simulate.__get__(self.env)
+        # self.env = gym.make('highway-v0', render_mode = 'rgb_array', config = self.config)
+        self.env = HW2(config=self.config, render_mode='rgb_array')
+        
         self.pixel_obs = True
         self.obs_shape = (3, self.image_size, self.image_size) # The first dim (3) is color channels (RGB).
         self.action_space = self.env.action_space
