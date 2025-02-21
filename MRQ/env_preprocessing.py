@@ -127,7 +127,7 @@ class HighwayPreprocessing:
         self.obs_shape = (3, self.image_size, self.image_size) # The first dim (3) is color channels (RGB).
         self.action_space = self.env.action_space
         self.history_queue = deque(maxlen=self.history)
-        self.max_ep_timesteps = self.env.config['duration'] * self.config["policy_frequency"]
+        self.max_ep_timesteps = self.config['duration'] * self.config["policy_frequency"]
 
     def reset(self):
         self.t = 0
