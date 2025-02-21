@@ -101,6 +101,62 @@ class DmcHyperparameters:
 
     def __post_init__(self): utils.enforce_dataclass_type(self)
 
+import highway_env
+
+class HighwayPreprocessing:
+    def __init__(self, env_name: str, seed: int = 0, eval_env: bool=False, hp: Dict={}):
+        self.history = 4
+        self.image_size = 84
+        import cv2
+        self.resize = partial(cv2.resize, interpolation=cv2.INTER_AREA)
+
+        self.offline = False
+        self.config = {
+            "action": {
+                "type": "DiscreteMetaAction",
+                #"actions_per_axis" : 3
+                },
+            "duration": 40,
+            "policy_frequency": 2,
+            "simulation_frequency": 5,  
+            "offscreen_rendering": True,
+        }
+
+        self.env = gym.make('highway-v0', render_mode = 'rgb_array', config = self.config)
+        self.pixel_obs = True
+        self.obs_shape = (3, self.image_size, self.image_size) # The first dim (3) is color channels (RGB).
+        self.action_space = self.env.action_space
+        self.history_queue = deque(maxlen=self.history)
+        self.max_ep_timesteps = self.env.config['duration'] * self.config["policy_frequency"]
+
+    def reset(self):
+        self.t = 0
+        time_step = self.env.reset()
+
+        obs = self.get_obs(time_step)
+        for _ in range(self.history):
+            self.history_queue.append(obs)
+
+        return np.concatenate(self.history_queue), {}
+
+
+    def step(self, action: int):
+        self.t += 1
+
+        _, reward, terminal, truncated = self.env.step(action)
+
+        obs = self.get_obs(self.t)
+        self.history_queue.append(obs)
+        return np.concatenate(self.history_queue), reward, terminal, truncated, {}
+
+    def get_obs(self, time_step: object):
+        self.render(self.image_size)
+
+    def render(self, size: int=84, camera_id: int=0):
+        img = self.env.render()
+        img = self.resize(img, (size, size))
+        return img.transpose(2, 0, 1)
+
 
 class DmcPreprocessing:
     def __init__(self, env_name: str, seed: int=0, eval_env: bool=False, hp: Dict={}):

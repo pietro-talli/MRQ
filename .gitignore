@@ -1,2 +1,3 @@
 evals/
 logs/
+*.pyc
