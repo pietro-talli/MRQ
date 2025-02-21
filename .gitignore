@@ -1,3 +1,5 @@
 evals/
 logs/
 *.pyc
+__pycache__/
+*.pyc
