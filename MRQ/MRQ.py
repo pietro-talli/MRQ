@@ -202,7 +202,6 @@ class Agent:
         encoder_loss.backward()
         self.encoder_optimizer.step()
 
-
     def train_rl(self, state: torch.Tensor, action: torch.Tensor, next_state: torch.Tensor,
         reward: torch.Tensor, not_done: torch.Tensor, reward_scale: float, target_reward_scale: float):
         with torch.no_grad():

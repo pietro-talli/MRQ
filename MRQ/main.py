@@ -35,7 +35,6 @@ class DefaultExperimentArguments:
 
     def __post_init__(self): utils.enforce_dataclass_type(self)
 
-
 def main():
     parser = argparse.ArgumentParser()
     # Experiment
@@ -79,6 +78,8 @@ def main():
     else:
         env = env_preprocessing.Env(args.env, args.seed, eval_env=False)
         eval_env = env_preprocessing.Env(args.env, args.seed+100, eval_env=True) # +100 to make sure the seed is different.
+
+        print("Env: ", env.obs_shape, env.action_dim, env.max_action, env.pixel_obs, env.discrete, env.history)
 
         agent = MRQ.Agent(env.obs_shape, env.action_dim, env.max_action,
             env.pixel_obs, env.discrete, device, env.history)
@@ -137,8 +138,8 @@ class OnlineExperiment:
 
         self.init_timestep = True
 
-
     def run(self):
+        time_start = time.time()
         state = self.env.reset()
         while self.t <= self.total_timesteps:
             self.maybe_evaluate()
@@ -157,6 +158,7 @@ class OnlineExperiment:
             if terminated or truncated:
                 self.logger.log_print(
                     f'Total T: {self.t + 1}, '
+                    f'FPS: {self.env.ep_timesteps / (time.time() - time_start):.2f}, '
                     f'Episode Num: {self.env.ep_num}, '
                     f'Episode T: {self.env.ep_timesteps}, '
                     f'Reward: {self.env.ep_total_reward:.3f}')

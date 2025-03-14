@@ -130,6 +130,7 @@ class ReplayBuffer:
     def sample_ind(self):
         if self.prioritized:
             csum = torch.cumsum(self.priority * self.mask, 0)
+            
             self.sampled_ind = torch.searchsorted(
                 csum,
                 torch.rand(size=(self.batch_size,), device=self.device)*csum[-1]

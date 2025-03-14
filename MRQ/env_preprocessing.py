@@ -80,6 +80,8 @@ class GymPreprocessing:
         self.offline = False
         self.pixel_obs = False
         self.obs_shape = self.env.observation_space.shape
+        print(self.env.observation_space)
+
         self.history = 1
         self.max_ep_timesteps = self.env.spec.max_episode_steps
         self.action_space = self.env.action_space
@@ -185,13 +187,10 @@ class HighwayPreprocessing:
         self.obs_shape = (3, self.image_size, self.image_size) # The first dim (3) is color channels (RGB).
         self.action_space = self.env.action_space
         self.history_queue = deque(maxlen=self.history)
-        self.max_ep_timesteps = self.config['duration'] * self.config["policy_frequency"]
-        self.time_start = time.time()
+        self.max_ep_timesteps = self.config['duration'] * self.config["policy_frequency"] 
         self.t = 0
 
     def reset(self):
-        print("FPS: ", self.t/(time.time()-self.time_start))
-        self.time_start = time.time()
         self.t = 0
         self.env.reset()
 
